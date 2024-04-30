@@ -1,0 +1,1326 @@
+#+title:データサイエンス100本ノック（構造化データ加工編）SQL版回答
+
+#+name: S001
+#+begin_src sql
+      SELECT * FROM receipt LIMIT 10;
+#+end_src
+
+#+name: S002
+#+begin_src sql
+      SELECT sales_ymd,customer_id,product_cd,amount FROM receipt LIMIT 10;
+#+end_src
+
+#+name: S003
+#+begin_src sql
+      SELECT sales_ymd AS sales_date,customer_id,product_cd,amount FROM receipt LIMIT 10;
+#+end_src
+
+#+name: S004
+#+begin_src sql
+      SELECT sales_ymd,customer_id,product_cd,amount FROM receipt WHERE customer_id = 'CS018205000001';
+#+end_src
+
+#+name: S005
+#+begin_src sql
+      SELECT sales_ymd,customer_id,product_cd,amount FROM receipt
+      WHERE customer_id = 'CS018205000001' AND amount >= 1000;
+#+end_src
+
+#+name: S006
+#+begin_src sql
+      SELECT sales_ymd,customer_id,product_cd,quantity,amount FROM receipt
+      WHERE customer_id = 'CS018205000001' AND (amount >= 1000 OR quantity >= 5);
+#+end_src
+
+#+name: S007
+#+begin_src sql
+      SELECT sales_ymd,customer_id,product_cd,amount FROM receipt
+      WHERE customer_id = 'CS018205000001' AND amount >= 1000 AND amount <= 2000;
+#+end_src
+
+#+name: S007 別解
+#+begin_src sql
+      SELECT sales_ymd,customer_id,product_cd,amount FROM receipt
+      WHERE customer_id = 'CS018205000001' AND amount BETWEEN 1000 AND 2000;
+#+end_src
+
+#+name: S008
+#+begin_src sql
+      SELECT sales_ymd,customer_id,product_cd,amount FROM receipt
+      WHERE customer_id = 'CS018205000001' AND product_cd != 'P071401019';
+#+end_src
+
+#+name: S009
+#+begin_src sql
+      SELECT * FROM store WHERE prefecture_cd != '13' and floor_area <= 900;
+#+end_src
+
+#+name: S010
+#+begin_src sql
+      SELECT * FROM store WHERE store_cd LIKE 'S14%' LIMIT 10;
+#+end_src
+
+#+name: S011
+#+begin_src sql
+      SELECT * FROM customer WHERE customer_id LIKE '%1' LIMIT 10;
+#+end_src
+
+#+name: S012
+#+begin_src sql
+      SELECT * FROM store WHERE address LIKE '%横浜市%';
+#+end_src
+
+#+name: S013
+#+begin_src sql
+      SELECT * FROM customer WHERE status_cd SIMILAR TO '[A-F]%' LIMIT 10;
+#+end_src
+
+#+name: S013別解
+#+begin_src sql
+      SELECT * FROM customer WHERE status_cd ~ '^[A-F]' LIMIT 10;
+#+end_src
+
+#+name: S014
+#+begin_src sql
+      SELECT * FROM customer WHERE status_cd SIMILAR TO '%[1-9]' LIMIT 10;
+#+end_src
+
+#+name: S014別解
+#+begin_src sql
+      SELECT * FROM customer WHERE status_cd ~ '[1-9]$' LIMIT 10;
+#+end_src
+
+#+name: S015
+#+begin_src sql
+      SELECT * FROM customer WHERE status_cd SIMILAR TO '[A-F]%[1-9]' LIMIT 10;
+#+end_src
+
+#+name: S015別解
+#+begin_src sql
+      SELECT * FROM customer WHERE status_cd ~ '^[A-F].*[1-9]$' LIMIT 10;
+#+end_src
+
+#+name: S016
+#+begin_src sql
+      SELECT * FROM store WHERE tel_no SIMILAR TO '[\d]{3}\-[\d]{3}\-[\d]{4}';
+#+end_src
+
+#+name: S016別解
+#+begin_src sql
+      SELECT * FROM store WHERE tel_no ~ '^[\d]{3}-[\d]{3}-[\d]{4}$';
+#+end_src
+
+#+name: S017
+#+begin_src sql
+      SELECT * FROM customer ORDER BY birth_day ASC LIMIT 10;
+#+end_src
+
+#+name: S018
+#+begin_src sql
+      SELECT * FROM customer ORDER BY birth_day DESC LIMIT 10;
+#+end_src
+
+#+name: S019
+#+begin_src sql
+  SELECT
+    customer_id,
+    amount,
+    RANK() OVER (ORDER BY amount DESC) AS amount_rank
+  FROM receipt LIMIT 10;
+#+end_src
+
+#+name: S020
+#+begin_src sql
+  SELECT
+    customer_id,
+    amount,
+    ROW_NUMBER() OVER (ORDER BY amount DESC) AS amount_rank
+  FROM receipt LIMIT 10;
+#+end_src
+
+#+name: S021
+#+begin_src sql
+    SELECT count(*) FROM receipt;
+#+end_src
+
+#+name: S022
+#+begin_src sql
+    SELECT count(DISTINCT customer_id) FROM receipt;
+#+end_src
+
+#+name: S023
+#+begin_src sql
+  SELECT
+    store_cd
+    , sum(amount) AS total_amount
+    , sum(quantity) AS total_quantity
+  FROM receipt GROUP BY store_cd;
+#+end_src
+
+#+name: S024
+#+begin_src sql
+  SELECT
+    customer_id,
+    max(sales_ymd) AS max_sale_ymd
+  FROM receipt GROUP BY customer_id LIMIT 10;
+#+end_src
+
+#+name: S025
+#+begin_src sql
+  SELECT
+    customer_id,
+    min(sales_ymd) AS min_sale_ymd
+  FROM receipt GROUP BY customer_id LIMIT 10;
+#+end_src
+
+#+name: S026
+#+begin_src sql
+  SELECT * FROM (
+       SELECT
+         customer_id,
+         min(sales_ymd) AS min_sales_ymd,
+         max(sales_ymd) AS max_sales_ymd
+       FROM receipt GROUP BY customer_id
+  ) AS t1
+  WHERE min_sales_ymd != max_sales_ymd LIMIT 10;
+#+end_src
+
+#+name: S026別解
+#+begin_src sql
+      SELECT customer_id,min(sales_ymd) AS min_ymd,max(sales_ymd) AS max_ymd
+      FROM receipt GROUP BY customer_id HAVING min(sales_ymd) != max(sales_ymd) LIMIT 10;
+#+end_src
+
+#+name: S027
+#+begin_src sql
+      SELECT store_cd, avg(amount) AS ave_amount FROM receipt GROUP BY store_cd ORDER BY ave_amount DESC LIMIT 5;
+#+end_src
+
+#+name: S028
+#+begin_src sql
+  SELECT
+    t1.store_cd,
+    avg(t1.amount) AS amount_median
+  FROM (
+     SELECT
+       store_cd,
+       amount,
+       row_number() OVER(PARTITION BY store_cd ORDER BY amount) AS rownum,
+       count(1) OVER(PARTITION BY store_cd) AS total
+     FROM receipt
+  ) AS t1
+  WHERE
+    t1.rownum BETWEEN t1.total/2.0 AND t1.total/2.0+1
+  GROUP BY t1.store_cd ORDER BY amount_median DESC LIMIT 5;
+#+end_src
+
+#+name: S028別解
+#+begin_src sql
+  SELECT store_cd, percentile_cont(0.5) WITHIN GROUP(ORDER BY amount) AS amount_median
+  FROM receipt GROUP BY store_cd ORDER BY amount_median DESC LIMIT 5;
+#+end_src
+
+#+name: S029
+#+begin_src sql
+  WITH t1 AS (
+    SELECT
+      store_cd,
+      product_cd,
+      count(1) AS total
+    FROM receipt GROUP BY store_cd,product_cd
+  )
+  ,t2 AS (
+    SELECT
+      store_cd, product_cd, total,
+      rank() OVER(PARTITION BY store_cd ORDER BY total DESC) AS rnk
+    FROM t1
+  )
+
+  SELECT store_cd, product_cd, total FROM t2 WHERE rnk = 1 LIMIT 10;
+#+end_src
+
+#+name: S030
+#+begin_src sql
+  WITH t_average AS (
+    SELECT store_cd, avg(amount) AS ave_amount FROM receipt GROUP BY store_cd
+  )
+
+  SELECT store_cd, avg((amount - ave_amount)^2) AS variance
+  FROM receipt INNER JOIN t_average USING(store_cd) GROUP BY store_cd ORDER BY variance DESC LIMIT 5;
+#+end_src
+
+#+name: S030別解
+#+begin_src sql
+    SELECT store_cd, var_pop(amount) AS var_amount FROM receipt GROUP BY store_cd ORDER BY var_amount DESC LIMIT 5;
+#+end_src
+
+#+name: S031
+#+begin_src sql
+  WITH t_average AS (
+    SELECT store_cd, avg(amount) AS ave_amount FROM receipt GROUP BY store_cd
+  )
+
+  SELECT store_cd, sqrt(avg((amount - ave_amount)^2)) AS stddev
+  FROM receipt INNER JOIN t_average USING(store_cd) GROUP BY store_cd ORDER BY variance DESC LIMIT 5;
+#+end_src
+
+#+name: S031別解
+#+begin_src sql
+  SELECT store_cd, stddev_pop(amount) AS stddev_amount FROM receipt GROUP BY store_cd
+  ORDER BY stddev_amount DESC LIMIT 5;
+#+end_src
+
+#+name: S032
+#+begin_src sql
+  SELECT
+      percentile_cont(0.25) WITHIN GROUP(ORDER BY amount) AS amount_25,
+      percentile_cont(0.5) WITHIN GROUP(ORDER BY amount) AS amount_50,
+      percentile_cont(0.75) WITHIN GROUP(ORDER BY amount) AS amount_75,
+      percentile_cont(1.0) WITHIN GROUP(ORDER BY amount) AS amount_100
+  FROM receipt;
+#+end_src
+
+#+name: S033
+#+begin_src sql
+  SELECT store_cd,avg(amount) AS avg_amount
+  FROM receipt GROUP BY store_cd HAVING avg(amount) >= 330;
+#+end_src
+
+#+name: S034
+#+begin_src sql
+  WITH t1 AS (
+     SELECT customer_id,sum(amount) AS sum_amount
+     FROM receipt WHERE customer_id NOT LIKE 'Z%' GROUP BY customer_id
+  )
+  SELECT avg(sum_amount) FROM t1;
+#+end_src
+
+#+name: S035
+#+begin_src sql
+  WITH t1 AS (
+     SELECT customer_id,sum(amount) AS sum_amount
+     FROM receipt WHERE customer_id NOT LIKE 'Z%' GROUP BY customer_id
+  )
+  SELECT customer_id,sum_amount
+  FROM t1 WHERE sum_amount >= (SELECT avg(sum_amount) FROM t1) LIMIT 10;
+#+end_src
+
+#+name: S036
+#+begin_src sql
+  SELECT r.*,s.store_name FROM receipt AS r
+  JOIN store AS s ON r.store_cd = s.store_cd LIMIT 10;
+#+end_src
+
+<2024-04-08 月>
+#+name: S037
+#+begin_src sql
+  SELECT p.*,c.category_small_name
+  FROM product AS p
+  INNER JOIN category AS c ON p.category_small_cd = c.category_small_cd LIMIT 10;
+#+end_src
+
+#+name: S038
+#+begin_src sql
+      SELECT c.customer_id, COALESCE(sum(r.amount),0)
+      FROM customer AS c
+      LEFT JOIN receipt AS r ON c.customer_id = r.customer_id
+      GROUP BY c.customer_id
+      HAVING (c.customer_id NOT LIKE 'Z%' AND c.gender_cd = '1')
+      LIMIT 10;
+#+end_src
+
+#+name: S039
+#+begin_src sql
+      WITH top20days AS (
+         SELECT customer_id, count(DISTINCT sales_ymd) as days
+         FROM receipt
+         WHERE customer_id NOT LIKE 'Z%'
+         GROUP BY customer_id
+         ORDER BY days DESC
+         LIMIT 20
+      )
+      , top20amount AS (
+        SELECT customer_id,sum(amount) as sum_amount
+        FROM receipt
+        WHERE customer_id NOT LIKE 'Z%'
+        GROUP BY customer_id
+        ORDER BY sum_amount DESC
+        LIMIT 20
+      )
+
+      SELECT COALESCE(td.customer_id,ta.customer_id),
+             td.days,
+             ta.sum_amount
+      FROM top20days AS td FULL OUTER JOIN top20amount AS ta ON td.customer_id = ta.customer_id;
+#+end_src
+
+<2024-04-09 火>
+#+name: S040
+#+begin_src sql
+  SELECT count(*) FROM store CROSS JOIN product;
+#+end_src
+
+#+name: S041
+#+begin_src sql
+  WITH sum_amounts AS (
+  SELECT row_number() OVER(ORDER BY sales_ymd ASC) AS rn,sales_ymd,sum(amount) AS total
+  FROM receipt
+  GROUP BY sales_ymd
+  ORDER BY sales_ymd ASC
+  LIMIT 11
+  )
+  , sum_amounts1 AS (
+  SELECT rn,sales_ymd,total FROM sum_amounts
+  )
+  , sum_amounts2 AS (
+  SELECT rn-1 AS rn,sales_ymd,total FROM sum_amounts OFFSET 1
+  )
+
+  SELECT s2.total - s1.total,s1.sales_ymd AS sales_ymd_bg,s2.sales_ymd AS sales_ymd_en
+  FROM sum_amounts1 s1 INNER JOIN sum_amounts2 s2 ON s1.rn = s2.rn;
+#+end_src
+
+<2024-04-12 金>
+#+name: S042
+#+begin_src sql
+  WITH sorted_amounts AS (
+     SELECT sales_ymd,sum(amount) AS sum_amount
+     FROM receipt GROUP BY sales_ymd ORDER BY sales_ymd ASC
+  )
+
+  SELECT sales_ymd,
+         sum_amount,
+         LAG(sales_ymd,1) OVER (ORDER BY sales_ymd) AS lag1_ymd,
+         LAG(sum_amount,1) OVER (ORDER BY sales_ymd) AS lag1_amounts,
+         LAG(sales_ymd,2) OVER (ORDER BY sales_ymd) AS lag2_ymd,
+         LAG(sum_amount,2) OVER (ORDER BY sales_ymd) AS lag2_amount,
+         LAG(sales_ymd,3) OVER (ORDER BY sales_ymd) AS lag3_ymd,
+         LAG(sum_amount,3) OVER (ORDER BY sales_ymd) AS lag3_amount
+  FROM sorted_amounts
+  LIMIT 10;
+#+end_src
+
+#+name: S042-2
+#+begin_src sql
+  WITH amount_by_ymd AS (
+     SELECT sales_ymd,sum(amount) AS sum_amount
+     FROM receipt GROUP BY sales_ymd
+  ),
+  amount_by_ymd_with_lag3 AS (
+     SELECT sales_ymd,sum_amount,LAG(sales_ymd,3) OVER (ORDER BY sales_ymd) AS lag3_ymd
+     FROM amount_by_ymd
+  )
+
+  SELECT a.sales_ymd,a.sum_amount,b.sales_ymd AS lag_ymd,b.sum_amount AS lag_sum_amount
+  FROM amount_by_ymd_with_lag3 AS a
+       JOIN amount_by_ymd_with_lag3 AS b ON
+       (a.lag3_ymd IS NULL OR a.lag3_ymd <= b.sales_ymd)
+       AND b.sales_ymd < a.sales_ymd
+  ORDER BY sales_ymd,lag_ymd
+  LIMIT 10;
+#+end_src
+
+#+name: S043
+#+begin_src sql
+  DROP TABLE IF EXISTS sales_summary;
+
+  CREATE TABLE sales_summary AS
+     WITH customer_with_amount AS (
+          SELECT c.customer_id,c.gender_cd,floor(c.age/10)*10 AS age_group,r.amount
+          FROM customer AS c
+          LEFT JOIN
+          (
+              SELECT customer_id,sum(amount) AS amount FROM receipt
+              GROUP BY customer_id
+          ) AS r
+          ON c.customer_id = r.customer_id
+     )
+
+     SELECT age_group,
+            sum(CASE WHEN gender_cd = '0' THEN amount END) AS male,
+            sum(CASE WHEN gender_cd = '1' THEN amount END) AS female,
+            sum(CASE WHEN gender_cd = '9' THEN amount END) AS unk
+     FROM customer_with_amount
+     GROUP BY age_group
+     ORDER BY age_group;
+#+end_src
+
+#+name: S044
+#+begin_src sql
+  SELECT age_group,'00' AS gender_cd,male FROM sales_summary
+  UNION ALL
+  SELECT age_group,'01' AS gender_cd,female FROM sales_summary
+  UNION ALL
+  SELECT age_group,'99' AS gender_cd,unk FROM sales_summary;
+#+end_src
+
+#+name: S045
+#+begin_src sql
+    SELECT customer_id,
+           to_char(birth_day,'YYYYMMDD') AS c_birth_day
+    FROM customer LIMIT 10;
+#+end_src
+
+#+name: S046
+#+begin_src sql
+  SELECT customer_id,to_date(application_date,'YYYYMMDD') AS application_date
+  FROM customer LIMIT 10;
+#+end_src
+
+#+name: S047
+#+begin_src sql
+  SELECT receipt_no,receipt_sub_no,
+         TO_DATE(CAST(sales_ymd AS VARCHAR), 'YYYYMMDD') AS sales_ymd
+  FROM receipt LIMIT 10;
+#+end_src
+
+#+name: S048
+#+begin_src sql
+  SELECT receipt_no,receipt_sub_no,
+         CAST(TO_TIMESTAMP(sales_epoch) AS DATE) AS sales_ymd
+  FROM receipt LIMIT 10;
+#+end_src
+
+#+name: S049
+#+begin_src sql
+  SELECT receipt_no,receipt_sub_no,
+         EXTRACT(YEAR FROM TO_TIMESTAMP(sales_epoch)) AS sales_y
+  FROM receipt LIMIT 10;
+#+end_src
+
+#+name: S050
+#+begin_src sql
+  SELECT receipt_no,receipt_sub_no,
+         TO_CHAR(EXTRACT(MONTH FROM TO_TIMESTAMP(sales_epoch)),'00') AS sales_m
+  FROM receipt LIMIT 10;
+#+end_src
+
+#+name: S051
+#+begin_src sql
+  SELECT receipt_no,receipt_sub_no,
+         TO_CHAR(EXTRACT(DAY FROM TO_TIMESTAMP(sales_epoch)),'00') AS sales_d
+  FROM receipt LIMIT 10;
+#+end_src
+
+#+name: S052
+#+begin_src sql
+  SELECT customer_id, sum(amount) AS sum_amount, CASE WHEN sum(amount) <= 2000 THEN 0 ELSE 1 END AS flag_amount
+  FROM receipt WHERE customer_id NOT LIKE 'Z%' GROUP BY customer_id LIMIT 10;
+#+end_src
+
+#+name: S053
+#+begin_src sql
+  WITH customer_with_flag AS (
+     SELECT
+       customer_id,
+       CASE WHEN TO_NUMBER(substring(postal_cd FOR 3),'000') >= 100 AND TO_NUMBER(substring(postal_cd FOR 3),'000') <= 209 THEN '1'
+            ELSE '0'
+       END AS flag_postal
+     FROM
+      customer
+  )
+
+  SELECT
+    a.flag_postal,
+    count(DISTINCT a.customer_id) AS count
+  FROM customer_with_flag AS a
+  JOIN receipt AS b
+     ON a.customer_id = b.customer_id
+  GROUP BY a.flag_postal;
+#+end_src
+
+<2024-04-13 土>
+#+name: S054
+#+begin_src sql
+  SELECT
+    customer_id,
+    address,
+    CASE WHEN address LIKE '埼玉県%' THEN 11
+         WHEN address LIKE '千葉県%' THEN 12
+         WHEN address LIKE '東京都%' THEN 13
+         ELSE 14
+    END AS address_cd
+  FROM
+    customer
+  LIMIT 10;
+#+end_src
+
+#+name: S055
+#+begin_src sql
+  WITH amounts_by_customer AS (
+    SELECT
+      customer_id,
+      sum(amount) AS amounts
+    FROM
+      receipt
+    GROUP BY
+      customer_id
+  ),
+  quantiles AS (
+    SELECT
+      percentile_cont(0.25) WITHIN GROUP(ORDER BY amounts) AS q25,
+      percentile_cont(0.50) WITHIN GROUP(ORDER BY amounts) AS q50,
+      percentile_cont(0.75) WITHIN GROUP(ORDER BY amounts) AS q75
+    FROM
+      amounts_by_customer
+  )
+
+  SELECT
+    customer_id, amounts,
+    CASE WHEN amounts < q25 THEN 1
+         WHEN q25 <= amounts AND amounts < q50 THEN 2
+         WHEN q50 <= amounts AND amounts < q75 THEN 3
+         ELSE 4
+    END AS amounts_category
+  FROM
+    amounts_by_customer,quantiles
+  LIMIT 10;
+#+end_src
+
+#+name: S056
+#+begin_src sql
+  SELECT
+    customer_id,birth_day,
+    CASE WHEN age >= 60 THEN 60
+         ELSE floor(age / 10) * 10
+    END AS age_group
+  FROM
+    customer
+  LIMIT
+    10;
+#+end_src
+
+#+name: S057
+#+begin_src sql
+  SELECT
+    customer_id,birth_day,
+    CASE WHEN age >= 60 THEN gender_cd || '_' || '60'
+         ELSE gender_cd || '_' || TO_CHAR(floor(age / 10) * 10, 'FM00')
+    END AS age_gender_group
+  FROM
+    customer
+  LIMIT
+    10;
+#+end_src
+
+#+name: S058
+#+begin_src sql
+  SELECT
+    customer_id,
+    CASE WHEN gender_cd = '0' THEN 1 ELSE 0 END AS male_dummy,
+    CASE WHEN gender_cd = '1' THEN 1 ELSE 0 END AS female_dummy,
+  FROM
+    customer
+  LIMIT
+    10;
+#+end_src
+
+#+name: S059
+#+begin_src sql
+  WITH amount_by_customer AS (
+     SELECT customer_id,sum(amount) AS amounts
+     FROM receipt GROUP BY customer_id
+     HAVING customer_id NOT LIKE 'Z%'
+  ),
+  amount_stats AS (
+     SELECT avg(amounts) AS avg_amounts,stddev_pop(amounts) AS stddev_amounts
+     FROM amount_by_customer
+  )
+
+  SELECT
+    customer_id,
+    amounts,
+    (amounts - avg_amounts) / stddev_amounts AS standarized_amounts
+  FROM
+    amount_by_customer,amount_stats
+  LIMIT
+    10;
+#+end_src
+
+#+name: S060
+#+begin_src sql
+  WITH amount_by_customer AS (
+     SELECT customer_id,sum(amount) AS amounts
+     FROM receipt GROUP BY customer_id
+     HAVING customer_id NOT LIKE 'Z%'
+  ),
+  amount_stats AS (
+     SELECT max(amounts) AS max_amounts,min(amounts) AS min_amounts
+     FROM amount_by_customer
+  )
+
+  SELECT
+    customer_id,
+    amounts,
+    1.0 * (amounts - min_amounts) / (max_amounts - min_amounts) AS normalized_amounts
+  FROM
+    amount_by_customer,amount_stats
+  LIMIT
+    10;
+#+end_src
+
+#+name: S061
+#+begin_src sql
+  WITH amount_by_customer AS (
+     SELECT customer_id,sum(amount) AS amounts
+     FROM receipt GROUP BY customer_id
+     HAVING customer_id NOT LIKE 'Z%'
+  )
+  SELECT
+    customer_id,
+    amounts,
+    log10(amounts) AS log10_amounts
+  FROM
+    amount_by_customer
+  LIMIT
+    10;
+#+end_src
+
+#+name: S062
+#+begin_src sql
+  WITH amount_by_customer AS (
+     SELECT customer_id,sum(amount) AS amounts
+     FROM receipt GROUP BY customer_id
+     HAVING customer_id NOT LIKE 'Z%'
+  )
+  SELECT
+    customer_id,
+    amounts,
+    ln(amounts) AS ln_amounts
+  FROM
+    amount_by_customer
+  LIMIT
+    10;
+#+end_src
+
+#+name: S063
+#+begin_src sql
+  SELECT
+    product_cd,
+    unit_price,
+    unit_cost,
+    (unit_price - unit_cost) AS unit_profit
+  FROM
+    product
+  LIMIT
+    10;
+#+end_src
+
+#+name: S064
+#+begin_src sql
+  SELECT
+    AVG(1.0 * (unit_price - unit_cost) / unit_price) AS avg_profit_rate
+  FROM
+    product;
+#+end_src
+
+#+name: S065
+#+begin_src sql
+  WITH new_price_product AS (
+    SELECT
+      product_cd,
+      unit_cost,
+      FLOOR(unit_cost / 0.7) AS new_unit_price
+    FROM
+      product
+    LIMIT
+      10
+  )
+
+  SELECT
+    *,
+    1.0 * (new_unit_price - unit_cost) / new_unit_price AS new_unit_price_rate
+  FROM
+    new_price_product;
+#+end_src
+
+#+name: S066
+#+begin_src sql
+  WITH new_price_product AS (
+    SELECT
+      product_cd,
+      unit_cost,
+      ROUND(unit_cost / 0.7) AS new_unit_price
+    FROM
+      product
+    LIMIT
+      10
+  )
+
+  SELECT
+    *,
+    1.0 * (new_unit_price - unit_cost) / new_unit_price AS new_unit_price_rate
+  FROM
+    new_price_product;
+#+end_src
+
+#+name: S067
+#+begin_src sql
+  WITH new_price_product AS (
+    SELECT
+      product_cd,
+      unit_cost,
+      CEIL(unit_cost / 0.7) AS new_unit_price
+    FROM
+      product
+    LIMIT
+      10
+  )
+
+  SELECT
+    *,
+    1.0 * (new_unit_price - unit_cost) / new_unit_price AS new_unit_price_rate
+  FROM
+    new_price_product;
+#+end_src
+
+#+name: S068
+#+begin_src sql
+  SELECT
+    product_cd,
+    unit_price,
+    FLOOR(unit_price * 1.1) AS unit_tax_include_price
+  FROM
+    product
+  LIMIT
+    10;
+#+end_src
+
+#+name: S069
+#+begin_src sql
+  WITH amount_by_customer AS (
+    SELECT customer_id,sum(amount) AS sum_amount
+    FROM receipt
+    GROUP BY customer_id
+  ),
+  amount_by_customer_07 AS (
+    SELECT customer_id,sum(amount) AS sum_amount_07
+    FROM receipt
+    INNER JOIN product USING(product_cd)
+    WHERE category_major_cd = '07'
+    GROUP BY customer_id
+  )
+
+  SELECT customer_id,sum_amount,sum_amount_07,1.0*sum_amount_07/sum_amount AS ratio
+  FROM amount_by_customer
+  INNER JOIN amount_by_customer_07 USING(customer_id)
+  LIMIT 10;
+#+end_src
+
+<2024-04-15 月>
+#+name: S070
+#+begin_src sql
+  SELECT c.customer_id,r.sales_ymd,c.application_date,
+         (TO_DATE(CAST(r.sales_ymd AS VARCHAR), 'YYYYMMDD')) - (TO_DATE(c.application_date, 'YYYYMMDD')) AS elapsed_date
+  FROM receipt AS r
+  JOIN customer AS c USING(customer_id)
+  LIMIT 10;
+#+end_src
+
+#+name: S071
+#+begin_src sql
+  WITH intervals AS (
+     SELECT c.customer_id,r.sales_ymd,c.application_date,
+            age(TO_TIMESTAMP(CAST(r.sales_ymd AS VARCHAR), 'YYYYMMDD'),TO_TIMESTAMP(c.application_date, 'YYYYMMDD')) AS sales_app_interval
+     FROM receipt AS r
+     JOIN customer AS c USING(customer_id)
+  )
+
+  SELECT i.customer_id,i.sales_ymd,i.application_date,
+         EXTRACT(YEAR FROM sales_app_interval) * 12 + EXTRACT(MONTH FROM sales_app_interval) AS elapsed_months
+  FROM intervals AS i
+  LIMIT 10;
+#+end_src
+
+#+name: S072
+#+begin_src sql
+  WITH intervals AS (
+     SELECT c.customer_id,r.sales_ymd,c.application_date,
+            age(TO_TIMESTAMP(CAST(r.sales_ymd AS VARCHAR), 'YYYYMMDD'),TO_TIMESTAMP(c.application_date, 'YYYYMMDD')) AS sales_app_interval
+     FROM receipt AS r
+     JOIN customer AS c USING(customer_id)
+  )
+
+  SELECT i.customer_id,i.sales_ymd,i.application_date,
+         EXTRACT(YEAR FROM sales_app_interval) AS elapsed_years
+  FROM intervals AS i
+  LIMIT 10;
+#+end_src
+
+<2024-04-21 日>
+#+name: S073
+#+begin_src sql
+  WITH intervals AS (
+    SELECT c.customer_id,r.sales_ymd,c.application_date,
+           EXTRACT(EPOCH FROM TO_TIMESTAMP(CAST(r.sales_ymd AS VARCHAR),'YYYYMMDD'))
+           - EXTRACT(EPOCH FROM TO_TIMESTAMP(c.application_date,'YYYYMMDD')) AS sales_app_interval
+    FROM receipt AS r
+    JOIN customer AS c USING(customer_id)
+  )
+
+  SELECT customer_id,sales_ymd,application_date,sales_app_interval
+  FROM intervals
+  LIMIT 10;
+#+end_src
+
+#+name: S074
+#+begin_src sql
+  WITH receipt_sales_ymds AS (
+     SELECT TO_DATE(CAST(sales_ymd AS VARCHAR), 'YYYYMMDD') AS sales_ymd,
+            CAST(EXTRACT(DOW FROM (TO_DATE(CAST(sales_ymd AS VARCHAR), 'YYYYMMDD') - 1)) AS INTEGER) AS elapsed_days
+     FROM receipt
+  )
+
+  SELECT sales_ymd,
+         sales_ymd - elapsed_days AS monday,
+         elapsed_days
+  FROM receipt_sales_ymds LIMIT 10;
+#+end_src
+
+#+name: S075
+#+begin_src sql
+  WITH customer_sample AS (
+     SELECT customer_id,ROW_NUMBER() OVER (ORDER BY RANDOM()) AS rn, COUNT(*) OVER() AS c FROM customer
+  )
+
+  SELECT *
+  FROM customer
+  INNER JOIN (SELECT customer_id FROM customer_sample WHERE rn <= c*0.01) AS cs USING(customer_id)
+  LIMIT 10;
+#+end_src
+
+#+name: S076
+#+begin_src sql
+  WITH customer_sample AS (
+    SELECT customer_id,gender_cd,
+           ROW_NUMBER() OVER (PARTITION BY gender_cd ORDER BY RANDOM()) AS rn,
+           COUNT(*) OVER(PARTITION BY gender_cd) AS gender_cnt
+    FROM customer
+  )
+
+  SELECT gender_cd, COUNT(*)
+  FROM customer
+  INNER JOIN (SELECT customer_id FROM customer_sample WHERE rn <= gender_cnt*0.1) USING(customer_id)
+  GROUP BY gender_cd;
+#+end_src
+
+<2024-04-22 月>
+#+name: S077
+#+begin_src sql
+  SELECT customer_id, sum_amount
+  FROM (SELECT customer_id, SUM(amount) AS sum_amount FROM receipt GROUP BY customer_id) WHERE sum_amount <= 0;
+
+  WITH amounts AS (
+     SELECT customer_id, SUM(amount) AS sum_amount, LN(SUM(amount)) AS ln_sum_amount FROM receipt GROUP BY customer_id
+  ),
+  amount_stats AS (
+     SELECT AVG(ln_sum_amount) AS avg_amount,STDDEV(ln_sum_amount) AS stddev_amount FROM amounts
+  )
+
+  SELECT customer_id, sum_amount AS outlier_amount, ln_sum_amount AS ln_outlier_amount
+  FROM amounts,
+       (SELECT avg_amount - 3 * stddev_amount AS lo, avg_amount + 3 * stddev_amount AS up FROM amount_stats)
+  WHERE ln_sum_amount < lo OR ln_sum_amount > up
+  LIMIT 10;
+#+end_src
+
+#+name: S078
+#+begin_src sql
+  WITH amounts AS (
+     SELECT customer_id, SUM(amount) AS sum_amount FROM receipt WHERE customer_id NOT LIKE 'Z%' GROUP BY customer_id
+  ),
+  amount_stats AS (
+     SELECT percentile_cont(0.25) WITHIN GROUP(ORDER BY sum_amount) AS amount_1q,
+            percentile_cont(0.75) WITHIN GROUP(ORDER BY sum_amount) AS amount_3q
+     FROM amounts
+  )
+
+  SELECT customer_id, sum_amount AS outlier_amount
+  FROM amounts, (SELECT amount_1q - 1.5 * (amount_3q - amount_1q) AS lo, amount_3q + 1.5 * (amount_3q - amount_1q) AS up FROM amount_stats)
+  WHERE lo > sum_amount OR sum_amount > up
+  LIMIT 10;
+#+end_src
+
+#+name: S079
+#+begin_src sql
+  SELECT COUNT(*) FILTER(WHERE product_cd IS NULL) AS miss_product_cd,
+         COUNT(*) FILTER(WHERE category_major_cd IS NULL) AS miss_category_major_cd,
+         COUNT(*) FILTER(WHERE category_medium_cd IS NULL) AS miss_category_medium_cd,
+         COUNT(*) FILTER(WHERE category_small_cd IS NULL) AS miss_category_small_cd,
+         COUNT(*) FILTER(WHERE unit_price IS NULL) AS miss_unit_price,
+         COUNT(*) FILTER(WHERE unit_cost IS NULL) AS miss_unit_cost
+  FROM product;
+#+end_src
+
+#+name: S080
+#+begin_src sql
+  WITH product_cnt AS (
+     SELECT COUNT(*) AS count_before_delete FROM product
+  ),
+  product_delete_missings AS (
+     SELECT * FROM product
+     WHERE unit_price IS NOT NULL AND unit_cost IS NOT NULL
+  ),
+  product_cnt_after AS (
+     SELECT COUNT(*) AS count_after_delete FROM product_delete_missings
+  )
+  SELECT * FROM product_cnt, product_cnt_after;
+#+end_src
+
+<2024-04-23 火>
+#+name: S081
+#+begin_src sql
+  DROP TABLE IF EXISTS product2;
+  CREATE TABLE product2 AS (
+       SELECT product_cd,category_major_cd,category_medium_cd,category_small_cd,
+              COALESCE(unit_price, avg_unit_price) AS unit_price,
+              COALESCE(unit_cost, avg_unit_cost) AS unit_cost
+       FROM product,
+            (SELECT ROUND(AVG(unit_price)) AS avg_unit_price,
+                    ROUND(AVG(unit_cost)) AS avg_unit_cost
+             FROM product)
+  );
+
+  SELECT COUNT(*) FILTER(WHERE product_cd IS NULL) AS miss_product_cd,
+         COUNT(*) FILTER(WHERE category_major_cd IS NULL) AS miss_category_major_cd,
+         COUNT(*) FILTER(WHERE category_medium_cd IS NULL) AS miss_category_medium_cd,
+         COUNT(*) FILTER(WHERE category_small_cd IS NULL) AS miss_category_small_cd,
+         COUNT(*) FILTER(WHERE unit_price IS NULL) AS miss_unit_price,
+         COUNT(*) FILTER(WHERE unit_cost IS NULL) AS miss_unit_cost
+  FROM product2;
+#+end_src
+
+#+begin_src sql
+  SELECT product_cd,a.unit_price,a.unit_cost,b.unit_price,b.unit_cost
+  FROM (SELECT product_cd,unit_price,unit_cost FROM product WHERE unit_price IS NULL OR unit_cost IS NULL) AS a
+  INNER JOIN product2 AS b USING (product_cd);
+#+end_src
+
+#+name: S082
+#+begin_src sql
+  DROP TABLE IF EXISTS product3;
+  CREATE TABLE product3 AS (
+       SELECT product_cd,category_major_cd,category_medium_cd,category_small_cd,
+              COALESCE(unit_price, med_unit_price) AS unit_price,
+              COALESCE(unit_cost, med_unit_cost) AS unit_cost
+       FROM product,
+            (SELECT ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY unit_price)) AS med_unit_price,
+                    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY unit_cost)) AS med_unit_cost
+             FROM product)
+  );
+
+  SELECT COUNT(*) FILTER(WHERE product_cd IS NULL) AS miss_product_cd,
+         COUNT(*) FILTER(WHERE category_major_cd IS NULL) AS miss_category_major_cd,
+         COUNT(*) FILTER(WHERE category_medium_cd IS NULL) AS miss_category_medium_cd,
+         COUNT(*) FILTER(WHERE category_small_cd IS NULL) AS miss_category_small_cd,
+         COUNT(*) FILTER(WHERE unit_price IS NULL) AS miss_unit_price,
+         COUNT(*) FILTER(WHERE unit_cost IS NULL) AS miss_unit_cost
+  FROM product3;
+#+end_src
+
+#+name: S083
+#+begin_src sql
+  DROP TABLE IF EXISTS product4;
+  CREATE TABLE product4 AS (
+       SELECT product_cd,category_major_cd,category_medium_cd,category_small_cd,
+              COALESCE(unit_price, med_unit_price) AS unit_price,
+              COALESCE(unit_cost, med_unit_cost) AS unit_cost
+       FROM product
+       INNER JOIN
+            (SELECT category_small_cd,
+                    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY unit_price)) AS med_unit_price,
+                    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY unit_cost)) AS med_unit_cost
+             FROM product
+             GROUP BY category_small_cd)
+       USING(category_small_cd)
+  );
+
+  SELECT COUNT(*) FILTER(WHERE product_cd IS NULL) AS miss_product_cd,
+         COUNT(*) FILTER(WHERE category_major_cd IS NULL) AS miss_category_major_cd,
+         COUNT(*) FILTER(WHERE category_medium_cd IS NULL) AS miss_category_medium_cd,
+         COUNT(*) FILTER(WHERE category_small_cd IS NULL) AS miss_category_small_cd,
+         COUNT(*) FILTER(WHERE unit_price IS NULL) AS miss_unit_price,
+         COUNT(*) FILTER(WHERE unit_cost IS NULL) AS miss_unit_cost
+  FROM product4;
+#+end_src
+
+#+name: S084
+#+begin_src sql
+  DROP TABLE IF EXISTS sales2019;
+  CREATE TABLE sales2019 AS (
+    WITH all_term_amounts AS (
+      SELECT customer_id, SUM(amount) AS all_term_amount FROM receipt GROUP BY customer_id
+    ),
+    y2019_amounts AS (
+      SELECT customer_id, SUM(amount) AS y2019_term_amount FROM receipt
+      WHERE sales_ymd BETWEEN 20190101 AND 20191231 GROUP BY customer_id
+    )
+
+    SELECT c.customer_id, all_term_amount,y2019_term_amount,
+           CASE WHEN all_term_amount IS NULL THEN 0
+                ElSE 1.0 * COALESCE(y2019_term_amount,0) / all_term_amount
+           END AS y2019_on_allterm
+    FROM customer AS c
+    LEFT JOIN all_term_amounts AS t_all ON c.customer_id = t_all.customer_id
+    LEFT JOIN y2019_amounts AS t_2019 ON c.customer_id = t_2019.customer_id);
+
+  SELECT * FROM sales2019 WHERE y2019_on_allterm > 0 LIMIT 10;
+#+end_src
+
+<2024-04-25 木>
+#+name: S085
+#+begin_src sql
+  DROP TABLE IF EXISTS customer_2;
+  CREATE TABLE customer_2 AS (
+       WITH geocode_avgs AS (
+         SELECT postal_cd, AVG(longitude) AS longitude, AVG(latitude) AS latitude
+         FROM geocode GROUP BY postal_cd
+       )
+       SELECT * FROM customer JOIN geocode_avgs USING(postal_cd)
+  );
+
+  SELECT * FROM customer_2 LIMIT 10;
+#+end_src
+
+#+name: S086
+#+begin_src sql
+  SELECT customer_id, c.address AS customer_address, s.address AS store_address,
+         (6371 * ACOS(
+               SIN(RADIANS(c.latitude))*SIN(RADIANS(s.latitude))
+               +COS(RADIANS(c.latitude))*COS(RADIANS(s.latitude))
+               *COS(RADIANS(c.longitude)-RADIANS(s.longitude)))) AS distance
+  FROM customer_2 c JOIN store s ON c.application_store_cd = s.store_cd
+  LIMIT 10;
+#+end_src
+
+<2024-04-26 金>
+#+name: S087
+#+begin_src sql
+  DROP TABLE IF EXISTS customer_nayose;
+  EXPLAIN ANALYZE CREATE TABLE customer_nayose AS (
+    WITH amounts AS (
+      SELECT c.customer_id,c.customer_name,c.postal_cd,COALESCE(SUM(r.amount),0) AS amount
+      FROM customer AS c LEFT JOIN receipt AS r USING(customer_id)
+      GROUP BY c.customer_id,c.customer_name,c.postal_cd
+    ),
+    amounts_rank AS (
+      SELECT *, ROW_NUMBER() OVER (PARTITION BY customer_name, postal_cd ORDER BY amount DESC, customer_id) AS ranking
+      FROM amounts
+    )
+
+    SELECT c.* FROM customer AS c JOIN amounts_rank AS ar ON ar.ranking = 1 AND c.customer_id = ar.customer_id
+  );
+
+  SELECT customer_count,customer_nayose_count,customer_count-customer_nayose_count AS duplicate
+  FROM (SELECT COUNT(*) AS customer_count FROM customer),(SELECT COUNT(*) AS customer_nayose_count FROM customer_nayose);
+#+end_src
+
+#+begin_src sql
+  DROP TABLE IF EXISTS customer_nayose;
+  EXPLAIN ANALYZE CREATE TABLE customer_nayose AS (
+    WITH receipt_sum AS (
+      SELECT customer_id,SUM(amount) AS amount FROM receipt GROUP BY customer_id
+    ),
+    customer_amount AS (
+      SELECT customer_id,customer_name,postal_cd,COALESCE(amount,0) AS amount FROM customer LEFT JOIN receipt_sum USING(customer_id)
+    ),
+    customer_amount_ranking AS (
+      SELECT *, ROW_NUMBER() OVER(PARTITION BY postal_cd,customer_name ORDER BY amount DESC,customer_id ASC) AS ranking
+      FROM customer_amount
+    )
+
+    SELECT c.* FROM customer AS c JOIN customer_amount_ranking ca ON ca.ranking = 1 AND c.customer_id = ca.customer_id
+  );
+
+  SELECT customer_count,customer_nayose_count,customer_count-customer_nayose_count AS duplicate
+  FROM (SELECT COUNT(*) AS customer_count FROM customer),(SELECT COUNT(*) AS customer_nayose_count FROM customer_nayose);
+#+end_src
+
+#+name: S088
+#+begin_src sql
+  DROP TABLE IF EXISTS customer_n;
+  CREATE TABLE customer_n AS (
+    SELECT c.*, cn.customer_id AS integration_id
+    FROM customer c
+    JOIN customer_nayose cn
+    ON c.customer_name = cn.customer_name AND c.postal_cd = cn.postal_cd
+  );
+
+  SELECT count(*) FROM customer_n WHERE customer_id != integration_id;
+#+end_src
+
+<2024-04-29 月>
+#+name: S089
+#+begin_src sql
+  DROP TABLE IF EXISTS customer_with_trainflag;
+
+  CREATE TABLE customer_with_trainflag AS (
+    WITH random_customer AS (
+      SELECT customer_id, ROW_NUMBER() OVER(ORDER BY RANDOM()) AS rn, COUNT(*) OVER() AS cnt
+      FROM receipt JOIN customer USING(customer_id )GROUP BY customer_id
+    )
+
+    SELECT c.*, CASE WHEN rn <= cnt*0.8 THEN 1 ELSE 0 END AS is_train
+    FROM customer AS c INNER JOIN random_customer USING(customer_id)
+  );
+#+end_src
+
+#+name: S090
+#+begin_src sql
+  DROP TABLE IF EXISTS sales_month;
+  CREATE TABLE sales_month AS (
+    SELECT FLOOR(sales_ymd / 100) AS sales_ym, SUM(amount) AS amount
+    FROM receipt GROUP BY sales_ym ORDER BY sales_ym ASC
+  );
+
+  DROP TABLE IF EXISTS set_sales_month_1;
+  CREATE TABLE set_sales_month_1 AS (
+    SELECT sales_ym,amount,CASE WHEN ROW_NUMBER() OVER(ORDER BY sales_ym ASC) <= 12 THEN 1 ELSE 0 END AS is_train
+    FROM (SELECT * FROM sales_month LIMIT 18 OFFSET 0)
+  );
+
+  DROP TABLE IF EXISTS set_sales_month_2;
+  CREATE TABLE set_sales_month_2 AS (
+    SELECT sales_ym,amount,CASE WHEN ROW_NUMBER() OVER(ORDER BY sales_ym ASC) <= 12 THEN 1 ELSE 0 END AS is_train
+    FROM (SELECT * FROM sales_month LIMIT 18 OFFSET 6)
+  );
+
+  DROP TABLE IF EXISTS set_sales_month_3;
+  CREATE TABLE set_sales_month_3 AS (
+    SELECT sales_ym,amount,CASE WHEN ROW_NUMBER() OVER(ORDER BY sales_ym ASC) <= 12 THEN 1 ELSE 0 END AS is_train
+    FROM (SELECT * FROM sales_month LIMIT 18 OFFSET 12)
+  );
+#+end_src
+
+<2024-04-30 火>
+#+name: S091
+#+begin_src sql
+  DROP TABLE IF EXISTS customer_unsamp;
+  CREATE TABLE customer_unsamp AS (
+    WITH customer_with_flag AS (
+      SELECT c.*, CASE WHEN SUM(amount) IS NULL THEN 0 ELSE 1 END AS has_sales_result
+      FROM customer AS c LEFT JOIN receipt AS r USING(customer_id)
+      GROUP BY customer_id
+    ),
+    counts AS (
+      SELECT COUNT(*) AS cnt FROM customer_with_flag GROUP BY has_sales_result
+    ),
+    customer_rn AS (
+      SELECT *, ROW_NUMBER() OVER(PARTITION BY has_sales_result ORDER BY RANDOM()) AS rn
+      FROM customer_with_flag
+    )
+    SELECT customer_id,customer_name,gender_cd,gender,birth_day,age,postal_cd,address,
+           application_store_cd,application_date,status_cd, has_sales_result
+    FROM customer_rn,(SELECT MIN(cnt) AS sample_size FROM counts) WHERE rn <= sample_size
+  );
+#+end_src
+
+#+name: S092
+#+begin_src sql
+  DROP TABLE IF EXISTS customer_3rd_normlized;
+  CREATE TABLE customer_3rd_normlized AS (
+    SELECT customer_id,customer_name,gender_cd,birth_day,age,postal_cd,address,
+           application_store_cd,application_date,status_cd
+    FROM customer
+  );
+  DROP TABLE IF EXISTS gender;
+  CREATE TABLE gender AS (
+    SELECT gender_cd,gender FROM customer GROUP BY gender_cd,gender ORDER BY gender_cd
+  );
+#+end_src
+
+#+name: S093
+#+begin_src sql
+  DROP TABLE IF EXISTS product_with_categoryname;
+  CREATE TABLE product_with_categoryname AS (
+    SELECT p.product_cd, p.category_major_cd, c.category_major_name,
+           p.category_medium_cd, c.category_medium_name,
+           p.category_small_cd, c.category_small_name,
+           p.unit_price, p.unit_cost
+    FROM product AS p JOIN category AS c USING(category_small_cd)
+  );
+#+end_src
+
+#+name: S094
+#+begin_src sql
+  COPY product_with_categoryname TO '/workpsql/dsdojo_s094.csv'
+  DELIMITER ',' CSV HEADER ENCODING 'UTF-8';
+#+end_src
+
+#+name: S095
+#+begin_src sql
+  COPY product_with_categoryname TO '/workpsql/dsdojo_s095.csv'
+  DELIMITER ',' CSV HEADER ENCODING 'Shift_JIS';
+#+end_src
+
+#+name: S096
+#+begin_src sql
+  COPY product_with_categoryname TO '/workpsql/dsdojo_s096.csv'
+  DELIMITER ',' ENCODING 'UTF-8';
+#+end_src
+
+#+name: S097
+#+begin_src sql
+  DROP TABLE IF EXISTS s097table;
+  CREATE TABLE s097table (
+    product_cd VARCHAR(10),
+    category_major_cd VARCHAR(2),
+    category_major_name VARCHAR(32),
+    category_medium_cd VARCHAR(4),
+    category_medium_name VARCHAR(32),
+    category_small_cd VARCHAR(6),
+    category_small_name VARCHAR(32),
+    unit_price INTEGER,
+    unit_cost INTEGER
+  );
+
+  COPY s097table FROM '/workpsql/dsdojo_s094.csv'
+  DELIMITER ',' CSV HEADER ENCODING 'UTF-8';
+  SELECT * FROM s097table LIMIT 3;
+#+end_src
+
+#+name: S098
+#+begin_src sql
+  DROP TABLE IF EXISTS s098table;
+  CREATE TABLE s098table (
+    product_cd VARCHAR(10),
+    category_major_cd VARCHAR(2),
+    category_major_name VARCHAR(32),
+    category_medium_cd VARCHAR(4),
+    category_medium_name VARCHAR(32),
+    category_small_cd VARCHAR(6),
+    category_small_name VARCHAR(32),
+    unit_price INTEGER,
+    unit_cost INTEGER
+  );
+
+  COPY s098table FROM '/workpsql/dsdojo_s096.csv'
+  DELIMITER ',' ENCODING 'UTF-8';
+  SELECT * FROM s098table LIMIT 3;
+#+end_src
+
+#+name: S099
+#+begin_src sql
+  COPY product_with_categoryname TO '/workpsql/dsdojo_s099.tsv'
+  DELIMITER E'\t' CSV HEADER ENCODING 'UTF-8';
+#+end_src
+
+#+name: S100
+#+begin_src sql
+  DROP TABLE IF EXISTS s100table;
+  CREATE TABLE s100table (
+    product_cd VARCHAR(10),
+    category_major_cd VARCHAR(2),
+    category_major_name VARCHAR(32),
+    category_medium_cd VARCHAR(4),
+    category_medium_name VARCHAR(32),
+    category_small_cd VARCHAR(6),
+    category_small_name VARCHAR(32),
+    unit_price INTEGER,
+    unit_cost INTEGER
+  );
+
+  COPY s100table FROM '/workpsql/dsdojo_s099.tsv'
+  CSV HEADER DELIMITER E'\t' ENCODING 'UTF-8';
+  SELECT * FROM s100table LIMIT 3;
+#+end_src
