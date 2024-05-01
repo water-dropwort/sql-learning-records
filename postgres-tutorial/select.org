@@ -1,0 +1,205 @@
+作業用データ。
+#+begin_src sql
+  DROP TABLE IF EXISTS tbltest1;
+  CREATE TABLE tbltest1 (
+    col1 VARCHAR(1),
+    col2 VARCHAR(1),
+    col3 VARCHAR(1)
+  );
+  COPY tbltest1 FROM '/workpsql/postgres-tutorial/tbltest1.csv'
+  DELIMITER ',' CSV HEADER;
+#+end_src
+
+#+begin_src sql
+  DROP TABLE IF EXISTS tbltest2;
+  CREATE TABLE tbltest2 (
+    colts TIMESTAMP,
+    colnum INTEGER
+  );
+  COPY tbltest2 FROM '/workpsql/postgres-tutorial/tbltest2.csv'
+  DELIMITER ',' CSV HEADER;
+#+end_src
+
+* SELECT
+列の結合
+#+begin_src sql
+  SELECT col1||'-'||col2 col1_2,col3 FROM tbltest1;
+#+end_src
+
+* ORDER BY
+col1を降順で。
+#+begin_src sql
+  SELECT * FROM tbltest1 ORDER BY col1 DESC;
+#+end_src
+
+col1で降順、col2で昇順。
+#+begin_src sql
+  SELECT * FROM tbltest1 ORDER BY col1 DESC, col2 ASC;
+#+end_src
+
+連結した列をキーに降順で並べ替え。
+SELECT→ORDER BYの順で評価されるため、ORDER BYで使用できる。
+#+begin_src sql
+  SELECT col1||col2 col12,col3 FROM tbltest1 ORDER BY col12 DESC;
+#+end_src
+
+#+begin_src sql
+  SELECT col1,col2,col3,ROW_NUMBER() OVER(ORDER BY col2 ASC) rn2
+  FROM tbltest1 ORDER BY rn2 DESC;
+#+end_src
+
+LENGTHを使用したソートのサンプル。
+文字の長さで昇順に並べ替える。
+#+begin_src sql
+  CREATE TABLE lentest (
+    lang VARCHAR(32)
+  );
+  INSERT INTO lentest VALUES
+  ('python'),('javascript'),('c'),('haskell');
+  SELECT * FROM lentest;
+  SELECT lang,LENGTH(lang) len FROM lentest;
+  SELECT lang,LENGTH(lang) len FROM lentest ORDER BY len;
+  SELECT lang FROM lentest ORDER BY LENGTH(lang);
+  DROP TABLE IF EXISTS lentest;
+#+end_src
+
+NULLS FIRST/LAST
+#+begin_src sql
+  CREATE TABLE langs (
+    lang VARCHAR(32)
+  );
+  INSERT INTO langs VALUES
+  ('python'),('javascript'),(null),('c'),('haskell');
+  SELECT * FROM langs;
+  SELECT * FROM langs ORDER BY lang;
+  SELECT * FROM langs ORDER BY lang NULLS FIRST;
+  SELECT * FROM langs ORDER BY lang NULLS LAST;
+  DROP TABLE IF EXISTS langs;
+#+end_src
+
+* SELECT DISTINCT
+すべての列の内容が同じ行は取り除かれた状態となる。
+#+begin_src sql
+  SELECT DISTINCT * FROM tbltest1;
+#+end_src
+
+col1,col2について重複を取り除いたデータが出力される。
+#+begin_src sql
+  SELECT DISTINCT col1,col2 FROM tbltest1;
+#+end_src
+
+* WHERE
+col1がaの行のみ抽出。
+#+begin_src sql
+  SELECT * FROM tbltest1 WHERE col1 = 'a';
+#+end_src
+
+SELECTよりもWHEREが先に評価されるのでエラーになる。
+#+begin_src sql
+  SELECT col1||col2 col12,col3 FROM tbltest1 WHERE col12 LIKE 'a%';
+#+end_src
+SELECTで書いた式と同様の式をWHEREにも書く必要がある。
+#+begin_src sql
+  SELECT col1||col2 col12,col3 FROM tbltest1 WHERE col1||col2 LIKE 'a%';
+#+end_src
+FROMがWHEREより先に評価されるのでこっちでも動く。
+#+begin_src sql
+  SELECT * FROM (SELECT col1||col2 col12,col3 FROM tbltest1) WHERE col12 LIKE 'a%';
+#+end_src
+
+* LIMIT
+#+begin_src sql
+  SELECT *,ROW_NUMBER() OVER() FROM tbltest1 LIMIT 3;
+  SELECT *,ROW_NUMBER() OVER() FROM tbltest1 LIMIT 3 OFFSET 2;
+#+end_src
+
+* FETCH
+#+begin_src sql
+  SELECT *,ROW_NUMBER() OVER() FROM tbltest1
+  FETCH FIRST 3 ROWS ONLY;
+  SELECT *,ROW_NUMBER() OVER() FROM tbltest1
+  OFFSET 2 FETCH FIRST 3 ROWS ONLY;
+#+end_src
+
+* IN operator
+#+begin_src sql
+  SELECT * FROM tbltest1 WHERE col1||col2 IN('ai', 'bj');
+#+end_src
+
+cast operatorの確認
+#+begin_src sql
+  SELECT * FROM tbltest2 WHERE colts::date in ('2024-01-01', '2024-02-01');
+#+end_src
+
+* BETWEEN
+#+begin_src sql
+  SELECT * FROM tbltest2 WHERE colnum BETWEEN 21 AND 23;
+#+end_src
+
+* LIKE
+col1がaの行のみ抽出
+#+begin_src sql
+  SELECT * FROM tbltest1 WHERE col1||col2||col3 LIKE 'a%';
+#+end_src
+_は1文字だけマッチなので、以下を実行したときの出力は0行。
+#+begin_src sql
+  SELECT * FROM tbltest1 WHERE col1||col2||col3 LIKE 'a_';
+#+end_src
+マッチ結果t/fを出力。
+#+begin_src sql
+  SELECT *,col1||col2||col3 LIKE 'a%' AS is_start_a FROM tbltest1;
+#+end_src
+ILIKE operator
+#+begin_src sql
+  CREATE TABLE testilike (
+    name VARCHAR(7)
+  );
+  INSERT INTO testilike VALUES ('Python'),('PYTHON'),('python'),('pYthon'),('poisson');
+  SELECT * FROM testilike WHERE name LIKE 'Py%';
+  SELECT * FROM testilike WHERE name ILIKE 'Py%';
+  DROP TABLE IF EXISTS testilike;
+#+end_src
+ESCAPE
+#+begin_src sql
+  CREATE TABLE t(
+    message text
+  );
+
+  INSERT INTO t(message)
+  VALUES('The rents are now 10% higher than last month'),
+        ('The new film will have _ in the title');
+
+  SELECT * FROM t WHERE message LIKE '%10$%%' ESCAPE '$';
+  SELECT * FROM t WHERE message LIKE '%;_%' ESCAPE ';';
+  DROP TABLE IF EXISTS t;
+#+end_src
+
+* Joins
+#+begin_src sql
+  CREATE TABLE a (acol1 INTEGER,acol2 VARCHAR(32));
+  INSERT INTO a VALUES(1,'Python'),(2,'R'),(3,'Julia');
+  CREATE TABLE b (bcol1 INTEGER,bcol2 VARCHAR(32));
+  INSERT INTO b VALUES(1,'Python'),(2,'Java'),(3,'Ruby');
+  CREATE TABLE c (ccol1 INTEGER,ccol2 VARCHAR(32));
+  INSERT INTO c VALUES(1,'C'),(2,'C++'),(3,'C#');
+#+end_src
+INNER JOIN
+#+begin_src sql
+  SELECT * FROM a INNER JOIN b ON acol2 = bcol2;
+  SELECT * FROM a INNER JOIN b ON acol1 = bcol1 INNER JOIN c ON ABS(bcol1 - ccol1) = 1;
+#+end_src
+LEFT JOIN
+#+begin_src sql
+  SELECT * FROM a LEFT JOIN b ON acol2 = bcol2;
+  SELECT * FROM a LEFT JOIN b ON acol2 = bcol2 WHERE bcol1 IS NULL;
+#+end_src
+RIGHT JOIN
+#+begin_src sql
+  SELECT * FROM a RIGHT JOIN b ON acol2 = bcol2;
+  SELECT * FROM a RIGHT JOIN b ON acol2 = bcol2 WHERE acol1 IS NULL;
+#+end_src
+FULL JOIN
+#+begin_src sql
+  SELECT * FROM a FULL JOIN b ON acol2 = bcol2;
+  SELECT * FROM a FULL JOIN b ON acol2 = bcol2 WHERE acol1 IS NULL OR bcol1 IS NULL;
+#+end_src
